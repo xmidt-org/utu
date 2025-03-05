@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"time"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -24,7 +25,8 @@ type ServerIn struct {
 
 func NewServer(in ServerIn) (s *http.Server, err error) {
 	s = &http.Server{
-		Addr: in.CLI.Address,
+		Addr:              in.CLI.Address,
+		ReadHeaderTimeout: 2 * time.Second,
 	}
 
 	mux := http.NewServeMux()
