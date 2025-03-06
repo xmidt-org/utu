@@ -38,7 +38,7 @@ func (s *Signer) Sign(t jwt.Token) ([]byte, error) {
 	return jwt.Sign(
 		t,
 		jwt.WithKey(
-			s.key.Alg(),
+			currentKey.Alg,
 			currentKey.Key,
 			jws.WithProtectedHeaders(h),
 		),

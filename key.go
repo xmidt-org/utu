@@ -32,6 +32,10 @@ type MarshaledKey struct {
 
 // GeneratedKey holds the various objects related to a generated JWK.
 type GeneratedKey struct {
+	// Alg is the key algorithm to use when signing and verifying.
+	// This will vary according to the type of key.
+	Alg jwa.KeyAlgorithm
+
 	// KID is the unique, URL-safe identifier for this key.
 	KID string
 
@@ -136,6 +140,7 @@ func (k *Key) generateKey(kid string) (key jwk.Key, err error) {
 // updateKey updates the current key in use for signing and verification.
 // It stores this information internally, and returns the updated currentKey.
 func (k *Key) updateKey() (updated GeneratedKey, err error) {
+	updated.Alg = k.alg
 	updated.KID, err = k.generateKeyID()
 	if err == nil {
 		updated.Key, err = k.generateKey(updated.KID)
@@ -165,10 +170,6 @@ func (k *Key) updateKey() (updated GeneratedKey, err error) {
 	}
 
 	return
-}
-
-func (k *Key) Alg() jwa.KeyAlgorithm {
-	return k.alg
 }
 
 func (k *Key) Current() GeneratedKey {
