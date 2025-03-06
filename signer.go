@@ -4,6 +4,7 @@
 package main
 
 import (
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -23,12 +24,23 @@ func NewSigner(l *zap.Logger, key *Key, cli CLI) (s *Signer, err error) {
 	return
 }
 
+func (s *Signer) buildProtectedHeaders(currentKey GeneratedKey) (h jws.Headers) {
+	h = jws.NewHeaders()
+	h.Set(jws.KeyIDKey, currentKey.KID)
+	h.Set(jws.TypeKey, "at+jwt")
+	return
+}
+
 func (s *Signer) Sign(t jwt.Token) ([]byte, error) {
+	currentKey := s.key.Current()
+	h := s.buildProtectedHeaders(currentKey)
+
 	return jwt.Sign(
 		t,
 		jwt.WithKey(
 			s.key.Alg(),
-			s.key.Current().Key,
+			currentKey.Key,
+			jws.WithProtectedHeaders(h),
 		),
 	)
 }

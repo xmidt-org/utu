@@ -137,7 +137,7 @@ func (ih *IssueHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 	}
 
 	if err == nil {
-		response.Header().Set("Content-Type", "application/jwt")
+		response.Header().Set("Content-Type", "application/at+jwt")
 		response.Write(signed)
 	} else {
 		ih.logger.Error("unable to issue token", zap.Error(err))
