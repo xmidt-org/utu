@@ -7,12 +7,10 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
-	"github.com/xmidt-org/clifx"
-	"go.uber.org/fx"
 )
 
 type CLI struct {
-	Network  string            `default:"tcp" help:"the network for the server to bind on"`
+	Network  string            `default:"tcp" enum:"tcp,tcp4,tcp6" help:"the network for the server to bind on"`
 	Address  string            `default:":8080" help:"the bind address for the server"`
 	Issuer   string            `short:"i" default:"utu" help:"the issuer for issued JWTs (iss)"`
 	Subject  string            `short:"s" default:"utu" help:"the subject for issued JWTs (sub)"`
@@ -25,17 +23,20 @@ type CLI struct {
 	KeyCurve string `default:"P-256" enum:"P-256,P-384,P-521" help:"the elliptic curve for key generation. used only for EC keys."`
 }
 
-func ProvideCommandLine(args []string, options ...kong.Option) fx.Option {
-	return fx.Options(
-		clifx.Provide[CLI](
-			args,
-			append(
-				[]kong.Option{
-					kong.Description("labweek JWT issuer with lua integration"),
-					kong.UsageOnError(),
-				},
-				options...,
-			)...,
-		),
+func NewCLI(args []string, options ...kong.Option) (cli CLI, kctx *kong.Context, err error) {
+	options = append(
+		[]kong.Option{
+			kong.Description("labweek JWT issuer with lua integration"),
+			kong.UsageOnError(),
+		},
+		options...,
 	)
+
+	var k *kong.Kong
+	k, err = kong.New(&cli, options...)
+	if err == nil {
+		kctx, err = k.Parse(args)
+	}
+
+	return
 }

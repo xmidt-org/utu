@@ -15,5 +15,14 @@ func ProvideLogging() fx.Option {
 			zap.NewDevelopment,
 		),
 		fx.NopLogger,
+		/*
+			fx.WithLogger(
+				func(l *zap.Logger) fxevent.Logger {
+					return &fxevent.ZapLogger{
+						Logger: l,
+					}
+				},
+			),
+		*/
 	)
 }

@@ -11,20 +11,30 @@ import (
 	"go.uber.org/fx"
 )
 
+type errorHandler struct{}
+
+func (errorHandler) HandleError(err error) {
+	fmt.Fprintln(os.Stderr, err.Error())
+}
+
 func run(args []string, options ...kong.Option) {
+	cli, kctx, err := NewCLI(args, options...)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	app := fx.New(
-		ProvideCommandLine(args, options...),
+		fx.Supply(cli, kctx),
 		ProvideLogging(),
 		ProvideKey(),
 		ProvideSigner(),
 		ProvideIssuer(),
 		ProvideServer(),
+		fx.ErrorHook(errorHandler{}),
 	)
 
 	app.Run()
-	if err := app.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-	}
 }
 
 func main() {

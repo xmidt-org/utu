@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -47,7 +48,12 @@ func NewServer(in ServerIn) (s *http.Server, err error) {
 					go func() {
 						defer in.Shutdowner.Shutdown()
 
-						in.Logger.Info("starting server", zap.String("address", s.Addr))
+						in.Logger.Info(
+							"starting server",
+							zap.String("key", fmt.Sprintf("http://%s/key", s.Addr)),
+							zap.String("issue", fmt.Sprintf("http://%s/issue", s.Addr)),
+						)
+
 						serveErr := s.Serve(l)
 						if serveErr != nil {
 							in.Logger.Error("unable to start server", zap.Error(serveErr))
