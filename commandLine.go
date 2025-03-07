@@ -10,6 +10,7 @@ import (
 )
 
 type CLI struct {
+	Debug   bool   `help:"turns on debugging"`
 	Network string `default:"tcp" enum:"tcp,tcp4,tcp6" help:"the network for the server to bind on"`
 	Address string `default:":8080" help:"the bind address for the server"`
 
