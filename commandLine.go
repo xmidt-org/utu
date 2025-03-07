@@ -10,13 +10,15 @@ import (
 )
 
 type CLI struct {
-	Network  string            `default:"tcp" enum:"tcp,tcp4,tcp6" help:"the network for the server to bind on"`
-	Address  string            `default:":8080" help:"the bind address for the server"`
+	Network string `default:"tcp" enum:"tcp,tcp4,tcp6" help:"the network for the server to bind on"`
+	Address string `default:":8080" help:"the bind address for the server"`
+
+	Type     string            `short:"t" default:"JWT" help:"the type of JWT tokens to issue.  The recommended value is JWT, in all caps, which is the default."`
 	Issuer   string            `short:"i" default:"utu" help:"the issuer for issued JWTs (iss)"`
 	Subject  string            `short:"s" default:"utu" help:"the subject for issued JWTs (sub)"`
 	Expires  time.Duration     `short:"e" default:"15m" help:"how long until issued JWTs expire.  used to compute the exp claim."`
 	Audience []string          `short:"a" optional:"" help:"the audience (aud) for issued JWTs"`
-	Claims   map[string]string `optional:"" help:"the set of arbitrary claims for issued JWTs"`
+	Claims   map[string]string `short:"c" optional:"" help:"the set of arbitrary claims for issued JWTs"`
 
 	KeyRotate time.Duration `default:"24h" help:"how often the current signing key is rotated."`
 	KeyType   string        `enum:"EC,RSA" default:"EC" help:"the key type (kty) used to sign and verify JWTs"`

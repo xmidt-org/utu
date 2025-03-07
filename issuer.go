@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -116,16 +117,18 @@ func (i *Issuer) Issue() (t jwt.Token, err error) {
 }
 
 type IssueHandler struct {
-	logger *zap.Logger
-	issuer *Issuer
-	signer *Signer
+	logger      *zap.Logger
+	issuer      *Issuer
+	signer      *Signer
+	contentType string
 }
 
-func NewIssueHandler(l *zap.Logger, issuer *Issuer, signer *Signer) *IssueHandler {
+func NewIssueHandler(l *zap.Logger, issuer *Issuer, signer *Signer, cli CLI) *IssueHandler {
 	return &IssueHandler{
-		logger: l,
-		issuer: issuer,
-		signer: signer,
+		logger:      l,
+		issuer:      issuer,
+		signer:      signer,
+		contentType: fmt.Sprintf("application/%s", strings.ToLower(cli.Type)),
 	}
 }
 
@@ -137,7 +140,7 @@ func (ih *IssueHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 	}
 
 	if err == nil {
-		response.Header().Set("Content-Type", "application/at+jwt")
+		response.Header().Set("Content-Type", ih.contentType)
 		response.Write(signed)
 	} else {
 		ih.logger.Error("unable to issue token", zap.Error(err))

@@ -13,13 +13,19 @@ import (
 type Signer struct {
 	logger *zap.Logger
 	keys   *Keys
+	typ    string
 }
 
 func NewSigner(l *zap.Logger, keys *Keys, cli CLI) (s *Signer, err error) {
 	s = &Signer{
 		logger: l,
 		keys:   keys,
+		typ:    cli.Type,
 	}
+
+	s.logger.Info("signer",
+		zap.String("typ", s.typ),
+	)
 
 	return
 }
@@ -27,7 +33,7 @@ func NewSigner(l *zap.Logger, keys *Keys, cli CLI) (s *Signer, err error) {
 func (s *Signer) buildProtectedHeaders(currentKey *GeneratedKey) (h jws.Headers) {
 	h = jws.NewHeaders()
 	h.Set(jws.KeyIDKey, currentKey.KID())
-	h.Set(jws.TypeKey, "at+jwt")
+	h.Set(jws.TypeKey, s.typ)
 	return
 }
 

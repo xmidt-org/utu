@@ -55,6 +55,7 @@ func NewServer(in ServerIn) (s *http.Server, err error) {
 						in.Logger.Info(
 							"starting server",
 							zap.String("key", fmt.Sprintf("http://%s/key", s.Addr)),
+							zap.String("key", fmt.Sprintf("http://%s/keys", s.Addr)),
 							zap.String("issue", fmt.Sprintf("http://%s/issue", s.Addr)),
 						)
 
