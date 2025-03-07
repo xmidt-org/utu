@@ -56,7 +56,7 @@ func NewKeys(logger *zap.Logger, keyGenerator *KeyGenerator, cli CLI) (keys *Key
 	}
 
 	if err == nil {
-		keys.logger.Info("initial current key", zap.String("kid", initialCurrent.KID()))
+		keys.logger.Info("keys", Key("initial", keys.current))
 	}
 
 	return
@@ -76,7 +76,7 @@ func (keys *Keys) unsafeAddKey(newKey *GeneratedKey) {
 // The new current key is returned.
 func (keys *Keys) Rotate() (current *GeneratedKey, err error) {
 	if current, err = keys.keyGenerator.Generate(); err == nil {
-		keys.logger.Info("rotating key", zap.String("kid", current.KID()))
+		keys.logger.Info("rotating key", Key("new current", current))
 
 		defer keys.lock.Unlock()
 		keys.lock.Lock()
@@ -105,7 +105,7 @@ func (keys *Keys) Delete(kid string) error {
 	}
 
 	// TODO: how to handle marshal errors
-	keys.logger.Info("removing key", zap.String("kid", kid))
+	keys.logger.Info("removing key", Key("key", gk))
 	delete(keys.generatedKeys, kid)
 	keys.publicSet.RemoveKey(gk.publicKey)
 	keys.publicSetJWK, _ = json.Marshal(keys.publicSet)
