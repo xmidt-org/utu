@@ -4,21 +4,13 @@
 package main
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"sync"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jwt"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -28,61 +20,12 @@ var (
 	ErrNoSuchKey        = errors.New("no key exists with that identifier")
 )
 
-// GeneratedKey holds the various objects related to a generated JWK.
-type GeneratedKey struct {
-	// alg is the key algorithm to use when signing and verifying.
-	// This will vary according to the type of key.
-	alg jwa.KeyAlgorithm
-
-	// kid is the unique key identifier for this key.  This will
-	// be used as the jti for generated JWTs.
-	kid string
-
-	// key is the actual generated key.  This will always be a PRIVATE key.
-	key jwk.Key
-
-	// publicKey is the public portion of key.
-	publicKey jwk.Key
-
-	// publicJWK holds the premarshaled public key material for this key.
-	publicJWK []byte
-}
-
-// Alg returns the key algorithm for when using this key to sign or verify.
-func (gk *GeneratedKey) Alg() jwa.KeyAlgorithm {
-	return gk.alg
-}
-
-// KID returns the unique key identifier for this key.
-func (gk *GeneratedKey) KID() string {
-	return gk.kid
-}
-
-// WriteTo writes the public portion of this key to an arbitrary writer.
-// The key will be in jwk+json format.
-func (gk *GeneratedKey) WriteTo(dst io.Writer) (int64, error) {
-	n, err := dst.Write(gk.publicJWK)
-	return int64(n), err
-}
-
-// WithSigningKey produces the option that includes this key for signing and verifying.
-func (gk *GeneratedKey) WithSigningKey(opts ...jwt.Option) jwt.SignEncryptParseOption {
-	return jwt.WithKey(
-		gk.alg,
-		gk.key,
-		opts...,
-	)
-}
-
-// Keys holds the generated keys for signing and verification.
+// Keys is a manager for signing and verification keys.  Exactly (1) current key
+// is exposed for signing JWTs, with a number of other keys kept in escrow as
+// rotation happens.
 type Keys struct {
-	logger *zap.Logger
-	random io.Reader
-
-	alg   jwa.KeyAlgorithm
-	kty   jwa.KeyType
-	bits  int
-	curve elliptic.Curve
+	logger       *zap.Logger
+	keyGenerator *KeyGenerator
 
 	lock          sync.RWMutex
 	current       *GeneratedKey
@@ -94,43 +37,17 @@ type Keys struct {
 // NewKeys creates a new Keys collection for use in signing and verifying JWTs.
 // A Keys has exactly one (1) current key at any time.  Keys can be rotated and
 // deleted as desired.
-func NewKeys(logger *zap.Logger, cli CLI) (keys *Keys, err error) {
+func NewKeys(logger *zap.Logger, keyGenerator *KeyGenerator, cli CLI) (keys *Keys, err error) {
 	keys = &Keys{
 		logger:        logger,
-		random:        rand.Reader,
-		bits:          cli.KeySize,
+		keyGenerator:  keyGenerator,
 		publicSet:     jwk.NewSet(),
 		generatedKeys: make(map[string]*GeneratedKey),
 	}
 
-	switch {
-	case cli.KeyType == "EC" && cli.KeyCurve == "P-256":
-		keys.kty = jwa.EC()
-		keys.curve = elliptic.P256()
-		keys.alg = jwa.ES256()
-
-	case cli.KeyType == "EC" && cli.KeyCurve == "P-384":
-		keys.kty = jwa.EC()
-		keys.curve = elliptic.P384()
-		keys.alg = jwa.ES384()
-
-	case cli.KeyType == "EC" && cli.KeyCurve == "P-521":
-		keys.kty = jwa.EC()
-		keys.curve = elliptic.P521()
-		keys.alg = jwa.ES512()
-
-	case cli.KeyType == "RSA" && cli.KeySize > 0:
-		keys.kty = jwa.RSA()
-		keys.bits = cli.KeySize
-		keys.alg = jwa.RS256()
-
-	default:
-		err = fmt.Errorf("unsupported key parameters: type=%s, size=%d, curve=%s", cli.KeyType, cli.KeySize, cli.KeyCurve)
-	}
-
 	var initialCurrent *GeneratedKey
 	if err == nil {
-		initialCurrent, err = keys.newCurrentKey()
+		initialCurrent, err = keys.keyGenerator.Generate()
 	}
 
 	if err == nil {
@@ -140,82 +57,6 @@ func NewKeys(logger *zap.Logger, cli CLI) (keys *Keys, err error) {
 
 	if err == nil {
 		keys.logger.Info("initial current key", zap.String("kid", initialCurrent.KID()))
-	}
-
-	return
-}
-
-// generatedKeyID creates a URL-safe, random kid from the configured
-// source of randomness.
-func (keys *Keys) generateKeyID() (kid string, err error) {
-	var buf [16]byte
-	_, err = io.ReadFull(keys.random, buf[:])
-	if err == nil {
-		kid = base64.RawURLEncoding.EncodeToString(buf[:])
-	}
-
-	return
-}
-
-// generateRaw generates the raw key, e.g. RSA or EC.  The raw key
-// will always be a private key.
-func (keys *Keys) generateRaw() (raw any, err error) {
-	switch {
-	case keys.kty == jwa.RSA():
-		raw, err = rsa.GenerateKey(keys.random, keys.bits)
-
-	case keys.kty == jwa.EC():
-		raw, err = ecdsa.GenerateKey(keys.curve, keys.random)
-
-	default:
-		err = fmt.Errorf("unsupported key type: %s", keys.kty)
-	}
-
-	return
-}
-
-// newGeneratedKey creates the GeneratedKey metadata that wraps the given raw key.
-func (keys *Keys) newGeneratedKey(kid string, raw any) (gk *GeneratedKey, err error) {
-	gk = &GeneratedKey{
-		alg: keys.alg,
-		kid: kid,
-	}
-
-	gk.key, err = jwk.Import(raw)
-
-	if err == nil {
-		gk.key.Set(jwk.KeyUsageKey, jwk.ForSignature)
-		gk.key.Set(jwk.KeyOpsKey, jwk.KeyOperationList{jwk.KeyOpSign, jwk.KeyOpVerify})
-		gk.key.Set(jwk.KeyIDKey, kid)
-	}
-
-	if err == nil {
-		gk.publicKey, err = gk.key.PublicKey()
-	}
-
-	if err == nil {
-		gk.publicJWK, err = json.Marshal(gk.publicKey)
-	}
-
-	return
-}
-
-// newCurrentKey is a Template Method that uses the other generation functions
-// to create a new GeneratedKey to use as the current signing and verifying key.
-// This method does not modify this Keys instance.
-func (keys *Keys) newCurrentKey() (gk *GeneratedKey, err error) {
-	var (
-		kid string
-		raw any
-	)
-
-	kid, err = keys.generateKeyID()
-	if err == nil {
-		raw, err = keys.generateRaw()
-	}
-
-	if err == nil {
-		gk, err = keys.newGeneratedKey(kid, raw)
 	}
 
 	return
@@ -234,7 +75,7 @@ func (keys *Keys) unsafeAddKey(newKey *GeneratedKey) {
 // Rotate handles creating a new current key and adding it to the set.
 // The new current key is returned.
 func (keys *Keys) Rotate() (current *GeneratedKey, err error) {
-	if current, err = keys.newCurrentKey(); err == nil {
+	if current, err = keys.keyGenerator.Generate(); err == nil {
 		keys.logger.Info("rotating key", zap.String("kid", current.KID()))
 
 		defer keys.lock.Unlock()
@@ -349,7 +190,7 @@ func (kh *KeysHandler) ServeHTTP(response http.ResponseWriter, request *http.Req
 	kh.keys.WriteTo(response)
 }
 
-func ProvideKey() fx.Option {
+func ProvideKeys() fx.Option {
 	return fx.Provide(
 		NewKeys,
 		NewKeyHandler,

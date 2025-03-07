@@ -27,7 +27,9 @@ func run(args []string, options ...kong.Option) {
 	app := fx.New(
 		fx.Supply(cli, kctx),
 		ProvideLogging(),
-		ProvideKey(),
+		ProvideIDGenerator(),
+		ProvideKeyGenerator(),
+		ProvideKeys(),
 		ProvideSigner(),
 		ProvideIssuer(),
 		ProvideServer(),

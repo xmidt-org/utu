@@ -5,6 +5,7 @@ package main
 
 import (
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
 )
 
@@ -14,15 +15,12 @@ func ProvideLogging() fx.Option {
 		fx.Provide(
 			zap.NewDevelopment,
 		),
-		fx.NopLogger,
-		/*
-			fx.WithLogger(
-				func(l *zap.Logger) fxevent.Logger {
-					return &fxevent.ZapLogger{
-						Logger: l,
-					}
-				},
-			),
-		*/
+		fx.WithLogger(
+			func(l *zap.Logger) fxevent.Logger {
+				return &fxevent.ZapLogger{
+					Logger: l,
+				}
+			},
+		),
 	)
 }
