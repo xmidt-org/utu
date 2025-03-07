@@ -9,6 +9,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 type errorHandler struct{}
@@ -27,12 +28,28 @@ func run(args []string, options ...kong.Option) {
 	app := fx.New(
 		fx.Supply(cli, kctx),
 		ProvideLogging(),
-		ProvideIDGenerator(),
-		ProvideKeyGenerator(),
-		ProvideKeys(),
-		ProvideSigner(),
-		ProvideIssuer(),
-		ProvideServer(),
+		fx.Module(
+			"keys",
+			fx.Decorate(
+				func(l *zap.Logger) *zap.Logger {
+					return l.Named("keys")
+				},
+			),
+			ProvideIDGenerator(),
+			ProvideKeyGenerator(),
+			ProvideKeys(),
+			ProvideSigner(),
+			ProvideIssuer(),
+		),
+		fx.Module(
+			"http",
+			fx.Decorate(
+				func(l *zap.Logger) *zap.Logger {
+					return l.Named("http")
+				},
+			),
+			ProvideServer(),
+		),
 		fx.ErrorHook(errorHandler{}),
 	)
 
