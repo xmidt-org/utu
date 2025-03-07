@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -21,6 +22,7 @@ type ServerIn struct {
 	CLI          CLI
 	ListenConfig *net.ListenConfig
 	KeyHandler   *KeyHandler
+	KeysHandler  *KeysHandler
 	IssueHandler *IssueHandler
 
 	Lifecycle  fx.Lifecycle
@@ -34,8 +36,10 @@ func NewServer(in ServerIn) (s *http.Server, err error) {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/key", in.KeyHandler)
-	mux.Handle("/issue", in.IssueHandler)
+	mux.Handle("GET /keys", in.KeysHandler)
+	mux.Handle("GET /key", in.KeyHandler)
+	mux.Handle("GET /key/{kid}", in.KeyHandler)
+	mux.Handle("GET /issue", in.IssueHandler)
 	s.Handler = mux
 
 	in.Lifecycle.Append(
@@ -55,14 +59,14 @@ func NewServer(in ServerIn) (s *http.Server, err error) {
 						)
 
 						serveErr := s.Serve(l)
-						if serveErr != nil {
+						if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
 							in.Logger.Error("unable to start server", zap.Error(serveErr))
 						}
 					}()
 				}
 
 				if err != nil {
-					in.Logger.Error("unable to start server", zap.Error(err))
+					in.Logger.Error("unable to start listener", zap.Error(err))
 				}
 
 				return

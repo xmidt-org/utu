@@ -12,34 +12,32 @@ import (
 
 type Signer struct {
 	logger *zap.Logger
-	key    *Key
+	keys   *Keys
 }
 
-func NewSigner(l *zap.Logger, key *Key, cli CLI) (s *Signer, err error) {
+func NewSigner(l *zap.Logger, keys *Keys, cli CLI) (s *Signer, err error) {
 	s = &Signer{
 		logger: l,
-		key:    key,
+		keys:   keys,
 	}
 
 	return
 }
 
-func (s *Signer) buildProtectedHeaders(currentKey GeneratedKey) (h jws.Headers) {
+func (s *Signer) buildProtectedHeaders(currentKey *GeneratedKey) (h jws.Headers) {
 	h = jws.NewHeaders()
-	h.Set(jws.KeyIDKey, currentKey.KID)
+	h.Set(jws.KeyIDKey, currentKey.KID())
 	h.Set(jws.TypeKey, "at+jwt")
 	return
 }
 
 func (s *Signer) Sign(t jwt.Token) ([]byte, error) {
-	currentKey := s.key.Current()
+	currentKey := s.keys.Current()
 	h := s.buildProtectedHeaders(currentKey)
 
 	return jwt.Sign(
 		t,
-		jwt.WithKey(
-			currentKey.Alg,
-			currentKey.Key,
+		currentKey.WithSigningKey(
 			jws.WithProtectedHeaders(h),
 		),
 	)
