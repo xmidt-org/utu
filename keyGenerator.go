@@ -14,7 +14,6 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jwt"
 	"go.uber.org/fx"
 )
 
@@ -49,15 +48,6 @@ func (gk *GeneratedKey) KID() string {
 func (gk *GeneratedKey) WriteTo(dst io.Writer) (int64, error) {
 	n, err := dst.Write(gk.publicJWK)
 	return int64(n), err
-}
-
-// WithSigningKey produces the option that includes this key for signing and verifying.
-func (gk *GeneratedKey) WithSigningKey(opts ...jwt.Option) jwt.SignEncryptParseOption {
-	return jwt.WithKey(
-		gk.alg,
-		gk.key,
-		opts...,
-	)
 }
 
 // KeyGenerator generates raw keys, e.g. EC and RSA.

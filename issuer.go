@@ -136,7 +136,7 @@ func (ih *IssueHandler) ServeHTTP(response http.ResponseWriter, request *http.Re
 	var signed []byte
 	t, err := ih.issuer.Issue()
 	if err == nil {
-		signed, err = ih.signer.Sign(t)
+		signed, err = ih.signer.SignToken(t)
 	}
 
 	if err == nil {

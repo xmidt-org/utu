@@ -24,6 +24,7 @@ type ServerIn struct {
 	KeyHandler   *KeyHandler
 	KeysHandler  *KeysHandler
 	IssueHandler *IssueHandler
+	SignHandler  *SignHandler
 
 	Lifecycle  fx.Lifecycle
 	Shutdowner fx.Shutdowner
@@ -40,6 +41,7 @@ func NewServer(in ServerIn) (s *http.Server, err error) {
 	mux.Handle("GET /key", in.KeyHandler)
 	mux.Handle("GET /key/{kid}", in.KeyHandler)
 	mux.Handle("GET /issue", in.IssueHandler)
+	mux.Handle("PUT /sign", in.SignHandler)
 	s.Handler = mux
 
 	in.Lifecycle.Append(
