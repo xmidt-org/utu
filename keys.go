@@ -73,14 +73,14 @@ func (keys *Keys) unsafeAddKey(newKey *GeneratedKey) {
 }
 
 // Rotate handles creating a new current key and adding it to the set.
-// The new current key is returned.
-func (keys *Keys) Rotate() (current *GeneratedKey, err error) {
+// The old current key is returned, along with the new current key.
+func (keys *Keys) Rotate() (old, current *GeneratedKey, err error) {
 	if current, err = keys.keyGenerator.Generate(); err == nil {
-		keys.logger.Info("rotating key", Key("new current", current))
-
 		defer keys.lock.Unlock()
 		keys.lock.Lock()
 
+		keys.logger.Info("rotating key", Key("old", keys.current), Key("new", current))
+		old = keys.current
 		keys.unsafeAddKey(current)
 		keys.current = current
 	}

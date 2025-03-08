@@ -40,6 +40,7 @@ func run(args []string, options ...kong.Option) {
 			ProvideKeys(),
 			ProvideSigner(),
 			ProvideIssuer(),
+			ProvideRotator(),
 		),
 		fx.Module(
 			"http",
