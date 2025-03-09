@@ -130,6 +130,7 @@ func (sh *SignHandler) ServeHTTP(response http.ResponseWriter, request *http.Req
 
 	var jws []byte
 	if jws, err = sh.signer.SignPayload(request.Header.Get("Content-Type"), payload); err == nil {
+		response.Header().Set("Content-Type", "application/jose")
 		response.Write(jws)
 	} else {
 		sh.logger.Error("unable to sign payload", zap.Error(err))

@@ -42,6 +42,7 @@ func run(args []string, options ...kong.Option) {
 			ProvideSigner(),
 			ProvideIssuer(),
 			ProvideRotator(),
+			ProvideSwagger(),
 		),
 		fx.Module(
 			"http",

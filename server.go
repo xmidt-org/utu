@@ -18,13 +18,14 @@ import (
 type ServerIn struct {
 	fx.In
 
-	Logger       *zap.Logger
-	CLI          CLI
-	ListenConfig *net.ListenConfig
-	KeyHandler   *KeyHandler
-	KeysHandler  *KeysHandler
-	IssueHandler *IssueHandler
-	SignHandler  *SignHandler
+	Logger         *zap.Logger
+	CLI            CLI
+	ListenConfig   *net.ListenConfig
+	KeyHandler     *KeyHandler
+	KeysHandler    *KeysHandler
+	IssueHandler   *IssueHandler
+	SignHandler    *SignHandler
+	SwaggerHandler http.Handler `name:"swaggerHandler"`
 
 	Lifecycle  fx.Lifecycle
 	Shutdowner fx.Shutdowner
@@ -42,6 +43,7 @@ func NewServer(in ServerIn) (s *http.Server, err error) {
 	mux.Handle("GET /key/{kid}", in.KeyHandler)
 	mux.Handle("GET /issue", in.IssueHandler)
 	mux.Handle("PUT /sign", in.SignHandler)
+	mux.Handle("GET /swagger/", in.SwaggerHandler)
 	s.Handler = mux
 
 	in.Lifecycle.Append(
