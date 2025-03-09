@@ -27,7 +27,7 @@ type RotatorIn struct {
 
 	Logger       *zap.Logger
 	KeyGenerator *KeyGenerator
-	CurrentKey   *CurrentKey
+	KeyAccessor  *KeyAccessor
 	KeyStore     KeyStore
 	CLI          CLI
 	Lifecycle    fx.Lifecycle
@@ -46,7 +46,7 @@ type RotatorIn struct {
 type Rotator struct {
 	logger       *zap.Logger
 	keyGenerator *KeyGenerator
-	currentKey   *CurrentKey
+	keyAccessor  *KeyAccessor
 	keyStore     KeyStore
 	rotate       time.Duration
 
@@ -59,7 +59,7 @@ func NewRotator(in RotatorIn) (r *Rotator) {
 	r = &Rotator{
 		logger:       in.Logger,
 		keyGenerator: in.KeyGenerator,
-		currentKey:   in.CurrentKey,
+		keyAccessor:  in.KeyAccessor,
 		keyStore:     in.KeyStore,
 		rotate:       in.CLI.KeyRotate,
 	}
@@ -91,7 +91,7 @@ func (r *Rotator) unsafeStoreKey(k Key) (err error) {
 
 	if err == nil {
 		// stash the private key in our access point
-		r.currentKey.Store(k)
+		r.keyAccessor.Store(k)
 	}
 
 	return

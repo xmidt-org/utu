@@ -15,16 +15,16 @@ import (
 )
 
 type Signer struct {
-	logger     *zap.Logger
-	currentKey *CurrentKey
-	typ        string
+	logger      *zap.Logger
+	keyAccessor *KeyAccessor
+	typ         string
 }
 
-func NewSigner(l *zap.Logger, currentKey *CurrentKey, cli CLI) (s *Signer, err error) {
+func NewSigner(l *zap.Logger, keyAccessor *KeyAccessor, cli CLI) (s *Signer, err error) {
 	s = &Signer{
-		logger:     l,
-		currentKey: currentKey,
-		typ:        cli.Type,
+		logger:      l,
+		keyAccessor: keyAccessor,
+		typ:         cli.Type,
 	}
 
 	s.logger.Info("signer",
@@ -38,7 +38,7 @@ func NewSigner(l *zap.Logger, currentKey *CurrentKey, cli CLI) (s *Signer, err e
 // the current signing key.
 func (s *Signer) SignToken(t jwt.Token) (signed []byte, err error) {
 	var currentKey Key
-	currentKey, err = s.currentKey.Load()
+	currentKey, err = s.keyAccessor.Load()
 
 	if err == nil {
 		h := jws.NewHeaders()
@@ -72,7 +72,7 @@ func (s *Signer) ctyOf(contentType string) string {
 // typ attribute in the protected header.
 func (s *Signer) SignPayload(contentType string, p []byte) (signed []byte, err error) {
 	var currentKey Key
-	currentKey, err = s.currentKey.Load()
+	currentKey, err = s.keyAccessor.Load()
 
 	if err == nil {
 		h := jws.NewHeaders()

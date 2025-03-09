@@ -35,7 +35,7 @@ func run(args []string, options ...kong.Option) {
 					return l.Named("keys")
 				},
 			),
-			ProvideCurrentKey(),
+			ProvideKeyAccessor(),
 			ProvideKeyStore(),
 			ProvideIDGenerator(),
 			ProvideKeyGenerator(),

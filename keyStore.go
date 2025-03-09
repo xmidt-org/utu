@@ -97,16 +97,16 @@ func (s *InMemoryKeyStore) Delete(kid string) (err error) {
 
 // KeyHandler renders PUBLIC keys over HTTP.
 type KeyHandler struct {
-	logger     *zap.Logger
-	currentKey *CurrentKey
-	keyStore   KeyStore
+	logger      *zap.Logger
+	keyAccessor *KeyAccessor
+	keyStore    KeyStore
 }
 
-func NewKeyHandler(logger *zap.Logger, currentKey *CurrentKey, keyStore KeyStore) *KeyHandler {
+func NewKeyHandler(logger *zap.Logger, keyAccessor *KeyAccessor, keyStore KeyStore) *KeyHandler {
 	return &KeyHandler{
-		logger:     logger,
-		currentKey: currentKey,
-		keyStore:   keyStore,
+		logger:      logger,
+		keyAccessor: keyAccessor,
+		keyStore:    keyStore,
 	}
 }
 
@@ -115,7 +115,9 @@ func (kh *KeyHandler) writeKey(response http.ResponseWriter, key Key) {
 	key.WriteTo(response)
 }
 
-// ServeHTTP serves up the JWK format of generated keys.
+// ServeHTTP serves up the JWK format of generated keys. If this handler receives a path variable
+// named "kid", that is used to lookup the key to render. Otherwise, this handler returns the current
+// verification key.
 func (kh *KeyHandler) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 	if kid := request.PathValue("kid"); len(kid) > 0 {
 		if key, err := kh.keyStore.Load(kid); err == nil {
@@ -123,7 +125,7 @@ func (kh *KeyHandler) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		} else {
 			response.WriteHeader(http.StatusNotFound)
 		}
-	} else if key, err := kh.currentKey.Load(); err == nil {
+	} else if key, err := kh.keyAccessor.Load(); err == nil {
 		kh.writeKey(response, key)
 	} else {
 		response.WriteHeader(http.StatusServiceUnavailable)
