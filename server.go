@@ -63,6 +63,7 @@ func NewServer(in ServerIn) (s *http.Server, err error) {
 									"key":   fmt.Sprintf("http://%s/key", s.Addr),
 									"keys":  fmt.Sprintf("http://%s/keys", s.Addr),
 									"issue": fmt.Sprintf("http://%s/issue", s.Addr),
+									"sign":  fmt.Sprintf("http://%s/sign", s.Addr),
 								},
 							),
 						)

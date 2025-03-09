@@ -4,25 +4,28 @@
 package main
 
 import (
+	"time"
+
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// GeneratedKeyMarshaler is a zap ObjectMarshaler for GeneratedKeys.
-type GeneratedKeyMarshaler struct {
-	*GeneratedKey
+// KeyMarshaler is a zap ObjectMarshaler for Keys.
+type KeyMarshaler struct {
+	Key
 }
 
-func (gkm GeneratedKeyMarshaler) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("kid", gkm.KID())
+func (km KeyMarshaler) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("kid", km.KID)
+	enc.AddTime("expires", km.Expires)
 	return nil
 }
 
-// Key emits a zap log field for the given key.
-func Key(name string, key *GeneratedKey) zap.Field {
-	return zap.Object(name, GeneratedKeyMarshaler{key})
+// KeyField emits a zap log field for the given key.
+func KeyField(name string, key Key) zap.Field {
+	return zap.Object(name, KeyMarshaler{key})
 }
 
 // ProvideLogging sets up the main zap.Logger and configures fx to use it.
@@ -31,6 +34,10 @@ func ProvideLogging() fx.Option {
 		fx.Provide(
 			func(cli CLI) (*zap.Logger, error) {
 				cfg := zap.NewDevelopmentConfig()
+				cfg.EncoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+					zapcore.RFC3339NanoTimeEncoder(t.UTC(), enc)
+				}
+
 				if cli.Debug {
 					cfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 				} else {

@@ -8,51 +8,25 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"go.uber.org/fx"
 )
 
-// GeneratedKey holds the various objects related to a generated JWK. Instances
-// of this type are immutable once created.
-type GeneratedKey struct {
-	// alg is the key algorithm to use when signing and verifying.
-	// This will vary according to the type of key.
-	alg jwa.KeyAlgorithm
-
-	// kid is the unique key identifier for this key.  This will
-	// be used as the jti for generated JWTs.
-	kid string
-
-	// key is the actual generated key.  This will always be a PRIVATE key.
-	key jwk.Key
-
-	// publicKey is the public portion of key.
-	publicKey jwk.Key
-
-	// publicJWK holds the premarshaled public key material for this key.
-	publicJWK []byte
-}
-
-// KID returns the unique key identifier for this key.
-func (gk *GeneratedKey) KID() string {
-	return gk.kid
-}
-
-// WriteTo writes the public portion of this key to an arbitrary writer.
-// The key will be in jwk+json format.
-func (gk *GeneratedKey) WriteTo(dst io.Writer) (int64, error) {
-	n, err := dst.Write(gk.publicJWK)
-	return int64(n), err
-}
-
 // KeyGenerator generates raw keys, e.g. EC and RSA.
+//
+// A KeyGenerator sets an expires on all keys. The expires value
+// for keys is <key rotation> + <token expires> + <1 minute grace>.
+// This allows for tokens signed by rotated keys to be validated
+// until they expire.
 type KeyGenerator struct {
 	random      io.Reader
+	now         func() time.Time
+	expires     time.Duration
 	idGenerator *IDGenerator
 	alg         jwa.KeyAlgorithm
 	ec          bool
@@ -63,6 +37,8 @@ type KeyGenerator struct {
 func NewKeyGenerator(idGenerator *IDGenerator, cli CLI) (kg *KeyGenerator, err error) {
 	kg = &KeyGenerator{
 		random:      rand.Reader,
+		now:         time.Now,
+		expires:     cli.KeyRotate + cli.Expires + time.Minute,
 		idGenerator: idGenerator,
 	}
 
@@ -109,30 +85,24 @@ func (kg *KeyGenerator) generateRaw() (raw any, err error) {
 }
 
 // Generate creates a new, random key appropriate for signing and verification.
-func (kg *KeyGenerator) Generate() (gk *GeneratedKey, err error) {
-	gk = &GeneratedKey{
-		alg: kg.alg,
-		kid: kg.idGenerator.Generate(16),
+func (kg *KeyGenerator) Generate() (k Key, err error) {
+	k = Key{
+		KID: kg.idGenerator.Generate(16),
+		Alg: kg.alg,
 	}
 
 	var raw any
 	raw, err = kg.generateRaw()
 	if err == nil {
-		gk.key, err = jwk.Import(raw)
+		k.Key, err = jwk.Import(raw)
 	}
 
 	if err == nil {
-		gk.key.Set(jwk.KeyUsageKey, jwk.ForSignature)
-		gk.key.Set(jwk.KeyOpsKey, jwk.KeyOperationList{jwk.KeyOpSign, jwk.KeyOpVerify})
-		gk.key.Set(jwk.KeyIDKey, gk.kid)
-	}
-
-	if err == nil {
-		gk.publicKey, err = gk.key.PublicKey()
-	}
-
-	if err == nil {
-		gk.publicJWK, err = json.Marshal(gk.publicKey)
+		k.Created = kg.now().UTC()
+		k.Expires = k.Created.Add(kg.expires)
+		k.Key.Set(jwk.KeyUsageKey, jwk.ForSignature)
+		k.Key.Set(jwk.KeyOpsKey, jwk.KeyOperationList{jwk.KeyOpSign, jwk.KeyOpVerify})
+		k.Key.Set(jwk.KeyIDKey, k.KID)
 	}
 
 	return

@@ -15,16 +15,16 @@ import (
 )
 
 type Signer struct {
-	logger *zap.Logger
-	keys   *Keys
-	typ    string
+	logger     *zap.Logger
+	currentKey *CurrentKey
+	typ        string
 }
 
-func NewSigner(l *zap.Logger, keys *Keys, cli CLI) (s *Signer, err error) {
+func NewSigner(l *zap.Logger, currentKey *CurrentKey, cli CLI) (s *Signer, err error) {
 	s = &Signer{
-		logger: l,
-		keys:   keys,
-		typ:    cli.Type,
+		logger:     l,
+		currentKey: currentKey,
+		typ:        cli.Type,
 	}
 
 	s.logger.Info("signer",
@@ -36,20 +36,26 @@ func NewSigner(l *zap.Logger, keys *Keys, cli CLI) (s *Signer, err error) {
 
 // SignToken returns the compact serialization of the given token signed with
 // the current signing key.
-func (s *Signer) SignToken(t jwt.Token) ([]byte, error) {
-	currentKey := s.keys.Current()
-	h := jws.NewHeaders()
-	h.Set(jws.KeyIDKey, currentKey.KID())
-	h.Set(jws.TypeKey, s.typ)
+func (s *Signer) SignToken(t jwt.Token) (signed []byte, err error) {
+	var currentKey Key
+	currentKey, err = s.currentKey.Load()
 
-	return jwt.Sign(
-		t,
-		jwt.WithKey(
-			currentKey.alg,
-			currentKey.key,
-			jws.WithProtectedHeaders(h),
-		),
-	)
+	if err == nil {
+		h := jws.NewHeaders()
+		h.Set(jws.KeyIDKey, currentKey.KID)
+		h.Set(jws.TypeKey, s.typ)
+
+		signed, err = jwt.Sign(
+			t,
+			jwt.WithKey(
+				currentKey.Alg,
+				currentKey.Key,
+				jws.WithProtectedHeaders(h),
+			),
+		)
+	}
+
+	return
 }
 
 func (s *Signer) ctyOf(contentType string) string {
@@ -64,22 +70,28 @@ func (s *Signer) ctyOf(contentType string) string {
 // SignPayload returns the compact serialization of the given payload signed
 // with the current signing key. The contentType value is used to determine the
 // typ attribute in the protected header.
-func (s *Signer) SignPayload(contentType string, p []byte) ([]byte, error) {
-	currentKey := s.keys.Current()
-	h := jws.NewHeaders()
-	h.Set(jws.KeyIDKey, currentKey.KID())
-	if len(contentType) > 0 {
-		h.Set(jws.ContentTypeKey, s.ctyOf(contentType))
+func (s *Signer) SignPayload(contentType string, p []byte) (signed []byte, err error) {
+	var currentKey Key
+	currentKey, err = s.currentKey.Load()
+
+	if err == nil {
+		h := jws.NewHeaders()
+		h.Set(jws.KeyIDKey, currentKey.KID)
+		if len(contentType) > 0 {
+			h.Set(jws.ContentTypeKey, s.ctyOf(contentType))
+		}
+
+		signed, err = jws.Sign(
+			p,
+			jws.WithKey(
+				currentKey.Alg,
+				currentKey.Key,
+				jws.WithProtectedHeaders(h),
+			),
+		)
 	}
 
-	return jws.Sign(
-		p,
-		jws.WithKey(
-			currentKey.alg,
-			currentKey.key,
-			jws.WithProtectedHeaders(h),
-		),
-	)
+	return
 }
 
 // SignHandler accepts an arbitrary payload and signs it with the current
