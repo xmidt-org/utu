@@ -13,16 +13,16 @@ components:
         example: "keyidentifier"
       kty:
         type: string
-        enum: [EC,RSA]
+        enum: [EC, RSA]
         description: the raw type of the key
       key_ops:
         type: array
         items:
           type: string
-          enum: [sign,verify]
+          enum: [sign, verify]
       use:
         type: string
-        enum: [sig,enc]
+        enum: [sig, enc]
   jwkset:
     type: object
     properties:
@@ -30,7 +30,7 @@ components:
         type: array
         description: the keys in the set
         items:
-          $ref: "#/components/jwk"  
+          $ref: "#/components/jwk"
 
 info:
   title: utu
@@ -85,7 +85,7 @@ paths:
             application/jwk-set+json:
               schema:
                 $ref: "#/components/jwkset"
-           
+
   /sign:
     put:
       summary: signs the content supplied to it
