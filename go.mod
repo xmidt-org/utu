@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/alecthomas/kong v1.12.0
-	github.com/lestrrat-go/jwx/v3 v3.0.7
+	github.com/lestrrat-go/jwx/v3 v3.0.8
 	go.uber.org/fx v1.24.0
 	go.uber.org/zap v1.27.0
 )
